@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>projekt click&slide</title>
+    <style>
+        canvas {
+            margin: 0 2px;
+        }
+
+        body {
+            text-align: center;
+            background-color: rgba(116, 212, 211, 0.781);
+        }
+
+        #overlay {
+            position: fixed;
+            display: none;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 2;
+            cursor: pointer;
+        }
+
+        .text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            font-size: 50px;
+            color: white;
+            transform: translate(-50%, -50%);
+            -ms-transform: translate(-50%, -50%);
+        }
+
+        .time {
+            position: absolute;
+            top: 60%;
+            left: 50%;
+            font-size: 50px;
+            color: white;
+            transform: translate(-50%, -50%);
+            -ms-transform: translate(-50%, -50%);
+
+
+        }
+
+        #guziki {
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            border: 2px solid rgba(45, 81, 199, 0.767);
+            border-radius: 12px;
+            width: 300px;
+            margin-top: 5px;
+            text-align: center;
+        }
+
+        #obrazek {
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            border: 2px solid rgba(45, 81, 199, 0.767);
+            border-radius: 12px;
+            width: 300px;
+
+            text-align: center;
+        }
+    </style>
+
+    <script>
+        var gra = {
+            rozmiarPlanszy: -1,
+            kafelki: [],
+            xPustegoKafelka: 0,
+            yPustegoKafelka: 0,
+            liczbaPrzesuniec: 0,
+            numerObrazka: 1,
+            czas: new Date(0, 0, 0, 0, 0, 0, 0),
+            czasRozpoczecia: new Date(0, 0, 0, 0, 0, 0, 0),
+            koniecGry: true,
+
+            //
+            //
+            //
+            rozpocznij: function () {
+                this.wstawGuziki();
+                this.odswiezStoper();
+                this.wstawPrzyciski();
+                setInterval(function () {
+                    for (let i = 0; i < 5; i++) {
+                        gra.przemieszajObrazek();
+                    }
+
+                }, 2);
+
+            },
+            wstawObrazek: function () {
+                for (let i = 1; i < 4; i++) {
+                    var img = document.createElement("img");
+                    img.src = "obrazek" + i + ".jpg";
+                    img.width = 225;
+                    img.className = "slider"
+                    document.getElementById("obrazek").appendChild(img);
+                }
+
+                pokazObrazek(this.numerObrazka);
+            },
+            wstawPrzyciski: function () {
+                var lewo = document.createElement("button");
+                lewo.innerHTML = '&#10094';
+                lewo.addEventListener("click", function () {
+                    wyborObrazka(-1)
+                });
+                document.getElementById("obrazek").appendChild(lewo);
+
+                this.wstawObrazek();
+
+                var prawo = document.createElement("button");
+                prawo.innerHTML = '&#10095';
+                prawo.addEventListener("click", function () {
+                    wyborObrazka(1)
+                });
+                document.getElementById("obrazek").appendChild(prawo);
+
+            },
+            wstawGuziki: function () {
+                for (let i = 3; i < 7; i++) {
+                    var guzik = document.createElement("button");
+                    guzik.innerHTML = i + "x" + i;
+                    guzik.addEventListener("click", function () {
+                        kliknieciePrzycisku(i)
+                    });
+                    document.getElementById("guziki").appendChild(guzik);
+                }
+
+            },
+            odswiezStoper: function () {
+               
+                var obszar = document.getElementById('stoper');
+                obszar.innerHTML = '';
+                this.wstawSymbol(Math.floor(this.czas.getHours() / 10)); 
+
+                var hours = this.czas.getHours() % 10;
+                
+                if (hours > 0) {
+                    hours -= 1;
+                }
+                this.wstawSymbol(hours); 
+                this.wstawSymbol("colon");
+                this.wstawSymbol(Math.floor(this.czas.getMinutes() / 10));
+                this.wstawSymbol(this.czas.getMinutes() % 10);
+                this.wstawSymbol("colon");
+                this.wstawSymbol(Math.floor(this.czas.getSeconds() / 10));
+                this.wstawSymbol(this.czas.getSeconds() % 10);
+                this.wstawSymbol("dot");
+                this.wstawSymbol(Math.floor(this.czas.getMilliseconds() / 100) % 10);
+                this.wstawSymbol(Math.floor(this.czas.getMilliseconds() / 10) % 10);
+                this.wstawSymbol(Math.floor(this.czas.getMilliseconds() % 10));              
+            },
+
+            wstawSymbol: function (nazwa) {
+                var image = new Image();
+                image.src = nazwa + ".gif";
+                document.getElementById('stoper').appendChild(image);
+            },
+            stworzPlansze: function () {
+    
+                var image = new Image();
+                image.src = "obrazek" + this.numerObrazka + ".jpg";
+
+                var rozmiarObrazka = image.width;
+                var rozmiarKafelka = image.width / this.rozmiarPlanszy;
+            
+                this.kafelki = [];
+                for (let i = 0; i < this.rozmiarPlanszy; i++) {
+                    let wiersz = this.stworzWiersz(i, rozmiarKafelka, image);
+                    this.kafelki.push(wiersz);
+                }
+
+                this.wstawPustePole(rozmiarKafelka);
+
+            },
+            wstawPustePole: function (rozmiarKafelka) {
+                var pustyKafelek = document.createElement('canvas');
+                let rozmiarWyniku = 225 / this.rozmiarPlanszy;
+                pustyKafelek.width = rozmiarWyniku;
+                pustyKafelek.height = rozmiarWyniku;
+                var zawartoscKafelka = pustyKafelek.getContext('2d');
+                zawartoscKafelka.fillRect(0, 0, pustyKafelek.width, rozmiarKafelka.height);
+
+                this.xPustegoKafelka = this.rozmiarPlanszy - 1;
+                this.yPustegoKafelka = this.rozmiarPlanszy - 1;
+                this.kafelki[this.xPustegoKafelka][this.yPustegoKafelka] = pustyKafelek;
+                pustyKafelek.id = this.rozmiarPlanszy * this.rozmiarPlanszy - 1;
+
+            },
+            stworzWiersz: function (numerWiersza, rozmiarKafelka, image) {
+                let rozmiarWyniku = 225 / this.rozmiarPlanszy;
+
+                let wiersz = [];
+                for (let i = 0; i < this.rozmiarPlanszy; i++) {
+                    var kafelek = document.createElement('canvas');
+                    kafelek.width = rozmiarWyniku;
+                    kafelek.height = rozmiarWyniku;
+                    kafelek.id = i + numerWiersza * this.rozmiarPlanszy;
+                    var zawartoscKafelka = kafelek.getContext('2d');
+                    zawartoscKafelka.drawImage(image, i * rozmiarKafelka, numerWiersza * rozmiarKafelka, rozmiarKafelka, rozmiarKafelka, 0, 0, rozmiarWyniku, rozmiarWyniku);
+                    wiersz.push(kafelek);
+                }
+                return wiersz;
+            },
+            wyswietl: function () {
+                var obszar = document.getElementById('obszarGry');
+                obszar.innerHTML = '';
+                for (let x = 0; x < this.rozmiarPlanszy; x++) {
+                    for (let y = 0; y < this.rozmiarPlanszy; y++) {
+                        var nowyKafelek = kopiaKafelka(this.kafelki[y][x]); 
+                        nowyKafelek.addEventListener("click", function () {
+                            kilikniecieKafelka(x, y);
+                        });
+                        obszar.append(nowyKafelek);
+                    }
+                    obszar.appendChild(document.createElement("br"));
+                }
+
+            },
+            wyswietlRekordy: function () {
+                var tryb = this.rozmiarPlanszy + "x" + this.rozmiarPlanszy;
+                var obszar = document.getElementById('rekordy');
+                obszar.innerHTML = '';
+                var div = document.createElement("div");
+                div.innerHTML = "Rekordy " + tryb;
+                obszar.appendChild(div);
+
+                var rekordy = przeczytajCookie(tryb)
+
+                for (let i = 0; i < rekordy.length && i < 10; i++) {
+                    var div = document.createElement("div");
+                    var rekord= new Date(rekordy[i]);
+                    div.innerHTML = "Miejsce: " + (i + 1) + " Czas: " + sformatujCzas(rekord);
+                    obszar.appendChild(div);
+                }
+
+            },
+            dodajDoRekordow: function () {
+                var tryb = this.rozmiarPlanszy + "x" + this.rozmiarPlanszy;
+                var rekordy = przeczytajCookie(tryb);
+
+                //dodaj nowy czas
+                rekordy.push(this.czas);
+                //od najkrótszej sortowanie
+                rekordy.sort(function (a, b) {
+                    return new Date(a) - new Date(b);
+                });
+
+                zapiszCookie(tryb, rekordy);
+                this.wyswietlRekordy();
+
+            },
+            przemieszajObrazek: function () {
+
+                if (this.liczbaPrzesuniec < this.rozmiarPlanszy * this.rozmiarPlanszy * 10) {
+                    x = Math.floor(Math.random() * this.rozmiarPlanszy);
+                    y = Math.floor(Math.random() * this.rozmiarPlanszy);
+                    if (this.czyPoprawnyKafelek(x, y)) {
+
+                        this.zamienKafelek(x, y)
+
+                        this.liczbaPrzesuniec++;
+
+                        this.wyswietl();
+                    }
+                }
+                else if (this.liczbaPrzesuniec == this.rozmiarPlanszy * this.rozmiarPlanszy * 10) {
+                    this.czasRozpoczecia = new Date();
+                    this.koniecGry = false;
+                    this.liczbaPrzesuniec++;
+                }
+                else if (this.koniecGry === false) {
+                    this.czas = new Date(Math.abs(new Date() - this.czasRozpoczecia));
+                    this.odswiezStoper();
+                }
+
+            },
+            czyPoprawnyKafelek: function (x, y) {
+                var odlegloscX = Math.abs(x - this.xPustegoKafelka);
+                var odlegloscY = Math.abs(y - this.yPustegoKafelka);
+                if (odlegloscX >= 1 && odlegloscY >= 1) {
+                    return false;
+                }
+                if (odlegloscX == 1 || odlegloscY == 1) {
+                    return true
+                }
+                return false;
+            },
+            zamienKafelek: function (x, y) {
+                var wylosowany = this.kafelki[y][x];
+                var pusty = this.kafelki[this.yPustegoKafelka][this.xPustegoKafelka];
+                this.kafelki[this.yPustegoKafelka][this.xPustegoKafelka] = wylosowany;
+                this.kafelki[y][x] = pusty;
+                this.xPustegoKafelka = x
+                this.yPustegoKafelka = y
+
+            },
+            czyWygrana: function () {
+
+
+                for (let y = 0; y < this.rozmiarPlanszy; y++) {
+                    for (let x = 0; x < this.rozmiarPlanszy; x++) {
+                        if (this.kafelki[y][x].id != (x * this.rozmiarPlanszy + y)) {
+                            return false;
+                        }
+                    }
+                }
+
+                return true;
+
+            }
+        }
+
+        window.onload = function () {
+            gra.rozpocznij();
+        }
+
+        function kliknieciePrzycisku(n) {
+            gra.rozmiarPlanszy = n;
+            gra.stworzPlansze();
+            gra.wyswietl();
+            gra.wyswietlRekordy();
+
+            gra.liczbaPrzesuniec = 0;
+            gra.koniecGry = true;
+            gra.przemieszajObrazek();
+           
+
+        }
+        function kilikniecieKafelka(x, y) {
+            if (gra.czyPoprawnyKafelek(x, y)) {
+                gra.zamienKafelek(x, y)
+                gra.wyswietl();
+                if (gra.czyWygrana()) {
+                    wygrales();
+                }
+            }
+        }
+        function kopiaKafelka(staryKafelek) {
+            nowyKafelek = document.createElement('canvas');
+            nowyKafelek.width = staryKafelek.width;
+            nowyKafelek.height = staryKafelek.height;
+            nowyKafelek.id = staryKafelek.id;
+            var zawartosc = nowyKafelek.getContext('2d');
+            zawartosc.drawImage(staryKafelek, 0, 0);
+            return nowyKafelek;
+        }
+        function wygrales() {
+            gra.koniecGry = true;
+            document.getElementById("overlay").style.display = "block";
+            document.getElementById("overlay").innerHTML = "";
+
+            var tekst = document.createElement("div");
+            tekst.className = "text";
+            tekst.innerHTML = "Wygrałeś! Twój czas to :"
+            document.getElementById("overlay").appendChild(tekst);
+
+            var czas = document.createElement("div");
+            czas.innerHTML = sformatujCzas(gra.czas);
+            czas.className = "time";
+            document.getElementById("overlay").appendChild(czas);
+
+            gra.dodajDoRekordow();
+        }
+
+        function off() {
+            document.getElementById("overlay").style.display = "none";
+        }
+
+
+        function wyborObrazka(n) {
+            gra.numerObrazka += n;
+            pokazObrazek(gra.numerObrazka);
+        }
+
+        function pokazObrazek(n) {
+            var x = document.getElementsByClassName("slider");
+
+            if (n > x.length) { gra.numerObrazka = 1 }
+            if (n < 1) { gra.numerObrazka = x.length }
+            for (var i = 0; i < x.length; i++) {
+                x[i].style.display = "none";
+            }
+
+            x[gra.numerObrazka - 1].style.display = "inline";
+        }
+        function przesunPrawo() {
+            wyborObrazka(1)
+
+        }
+        function zapiszCookie(tryb, tablicaRekordow) {
+            var tablicaRekordowJSON = JSON.stringify(tablicaRekordow);
+
+            var d = new Date();
+            d.setTime(d.getTime() + (100 * 24 * 60 * 60 * 1000));
+            var expires = "expires=" + d.toUTCString();
+
+            document.cookie = tryb + "=" + tablicaRekordowJSON + ";" + expires + ";path=/";
+        }
+        
+        function przeczytajCookie(tryb) {
+            var name = tryb + "=";
+            var decodedCookie = document.cookie;
+            var ca = decodedCookie.split(';');
+            for (var i = 0; i < ca.length; i++) {
+                var c = ca[i];
+                while (c.charAt(0) == ' ') {
+                    c = c.substring(1);
+                }
+                if (c.indexOf(name) == 0) {
+                    var tablicaRekordowJSON = c.substring(name.length, c.length);
+                    return JSON.parse(tablicaRekordowJSON);
+                }
+            }
+            return [];
+
+        }
+        function sformatujCzas(t){
+        
+           return (t.getHours()-1) + ":" + t.getMinutes() + ":" + t.getSeconds() + "." + t.getMilliseconds();
+        }
+
+    </script>
+</head>
+
+
+
+
+
+<body>
+    <div id="obrazek">
+
+    </div>
+    <div id="guziki">
+
+    </div>
+    <div id="stoper">
+
+    </div>
+    <div id="obszarGry">
+
+    </div>
+    <div id="rekordy">
+
+    </div>
+    <div id="overlay" onclick="off()">
+
+    </div>
+</body>
+
+</html>
